@@ -11,7 +11,7 @@ It can deploy
    
 ## What problems does it solve?
 
-- HDFS is a complex system that requires in-depth understanding to deploy correctly. This wizard guides you with creating
+- HDFS is a complex system and requires in-depth understanding to deploy correctly. This wizard guides you with creating
   HDFS clusters and sizing them without having to read multiple docs and discussions.
 
 - The wizard calculates monthly and hourly total cost of ownership at every step to help you with sizing decisions.
@@ -39,3 +39,12 @@ It can deploy
 
 **NameNode HA Configuration:**
 ![NameNode HA Setup](docs/images/ha-config.png "NameNode HA Setup")
+
+
+## Installation
+
+TODO
+
+## Operations
+
+TODO
