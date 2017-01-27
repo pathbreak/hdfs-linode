@@ -1,0 +1,16 @@
+    - name: Create file system on HDFS storage device
+      filesystem: 
+        fstype: ext4
+        dev: "{{ data_device }}"
+
+
+    - name: Mount HDFS data device 
+      mount:
+        name: "{{ data_mount }}"
+        src: "{{ data_device }}"
+        fstype: ext4
+        opts: noatime
+        state: mounted  
+
+  
+

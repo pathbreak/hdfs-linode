@@ -1,0 +1,99 @@
+---
+- name: Zookeeper installation
+  hosts: all
+
+  vars_files:
+    - zk_common_vars.yaml
+    
+  tasks:
+    - name: Install required packages
+      apt: name={{ item }} state=latest
+      with_items:
+        - openjdk-7-jre-headless
+        - supervisor
+      become: yes
+      
+    - name: Create ZK group
+      group: name={{zk_group}} system=yes
+      become: yes
+      
+    - name: Create ZK user
+      user: name={{zk_user}} system=yes group={{zk_group}}
+      become: yes
+      
+    - name: Create ZK data and log directories
+      become: yes
+      file: path={{item}} state=directory owner={{zk_user}} group={{zk_group}}
+      with_items:
+      - '/var/lib/zk'
+      - '/var/log/zk'
+
+    - name: Print zkid of this host
+      debug: var=zkid
+      
+    - name: Create /var/lib/zk/myid
+      template: src="./zk-templates/myid.j2" dest="/var/lib/zk/myid" owner={{zk_user}} group={{zk_group}}
+      become: yes
+      
+    - name: Install Zookeeper distribution if it isn't already
+      unarchive: copy=yes creates={{zk_install_path}} src={{zk_distribution}} 
+            dest={{zk_install_path_parent}} owner={{zk_user}} group={{zk_group}}
+      become: yes
+
+
+# Local play to create zoo.cfg with list of all zk hosts in the format: 
+#   server.{{myid}}={{ip_address}}:2888:3888
+- name: Create configuration files
+  hosts: localhost
+  connection: local
+  
+  vars_files:
+    - zk_common_vars.yaml
+  
+  tasks:
+    - name: Create zoo.cfg
+      template: src="./zk-templates/zoo.cfg.j2" dest="./zk-templates/zoo.cfg"
+
+    - name: Create supervisord configuration file
+      template: src="./zk-templates/zk-supervisord.j2" dest="./zk-templates/zk-supervisord.conf"
+      
+    - name: Create zookeeper-env.sh file with logging configuration
+      template: src="./zk-templates/zookeeper-env.sh.j2" dest="./zk-templates/zookeeper-env.sh"
+   
+
+# Play to distribute zoo.cfg and other files to all zk hosts.
+- name: Distribute configuration files and Start Zookeeper
+  hosts: all
+
+  vars_files:
+    - zk_common_vars.yaml
+  
+  tasks:
+    - name: Copy ZK configuration files
+      become: yes
+      copy: src="./zk-templates/{{item}}" dest="{{zk_install_path}}/conf/{{item}}"
+            owner={{zk_user}} group={{zk_group}}
+      with_items:
+      - "zoo.cfg"
+      - "log4j.properties"
+      - "java.env"
+      - "zookeeper-env.sh"
+
+
+    - name: Copy Supervisord configuration files
+      copy: src="./zk-templates/zk-supervisord.conf" dest="/etc/supervisor/conf.d/zk-supervisord.conf"
+      become: yes
+
+    - name: Supervisord reread
+      command: supervisorctl reread
+      become: yes
+
+    - name: Supervisord update
+      command: supervisorctl update
+      become: yes
+
+  
+    - name: Start Zookeeper
+      supervisorctl: name=zookeeper state=restarted
+      become: yes
+...

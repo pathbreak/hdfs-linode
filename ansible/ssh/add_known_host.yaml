@@ -1,0 +1,11 @@
+# Playbook to add an entry to .ssh/known_hosts file.
+#
+# Expected variables:
+#   host_fqdn : FQDN of the host to be added. Since this play uses 'ssh-keyscan' tool on specified host_fqdn,
+#       the target machine should be able to resolve this FQDN, either via DNS or by having an entry in /etc/hosts.
+
+- hosts: all
+  tasks:
+    - name: Add to known_hosts
+      shell: ssh-keyscan {{host_fqdn}} >> /root/.ssh/known_hosts
+      

@@ -1,0 +1,10 @@
+- hosts: all
+  tasks:
+    - name: Modify etc/hadoop/core-site.xml
+      template: src=templates/core-site.xml dest={{hadoop_install_path}}/etc/hadoop/core-site.xml 
+        
+    - name: Modify etc/hadoop/hdfs-site.xml
+      template: src=templates/hdfs-site.xml dest={{hadoop_install_path}}/etc/hadoop/hdfs-site.xml 
+        
+        
+        

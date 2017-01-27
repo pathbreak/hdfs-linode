@@ -1,0 +1,6 @@
+zk_distribution: ./zookeeper-3.4.6.tar.gz
+zk_install_path_parent: /opt
+zk_install_path: /opt/zookeeper-3.4.6
+
+zk_user: zk
+zk_group: zk

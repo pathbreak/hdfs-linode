@@ -1,0 +1,116 @@
+# Ansible playbook to configure a machine as a hadoop node
+#
+# Expected input variables
+#   master_node_fqdn : The FQDN of master node running HDFS name node and YARN ResourceManager.
+#   worker_node_fqdn : The FQDN of worker node running HDFS data node and YARN NodeManager. Not required while provisioning master node.
+#   local_pubkey_file : Local file path where target's public key file should be downloaded and stored.
+---
+- hosts: all
+
+  vars:
+    data_device: /dev/sdc
+    data_mount: /mnt/dfs
+    
+    hadoop_distribution: ./hadoop-2.7.0.tar.gz
+    hadoop_install_path_parent: /opt
+    hadoop_install_path: /opt/hadoop-2.7.0
+    
+    hdfs_url: "hdfs://{{master_node_fqdn}}:9000"
+    hdfs_name_dir: "{{data_mount}}/name"
+    hdfs_data_dir: "{{data_mount}}/data"
+  
+  tasks:
+    - name: Copy secure SSH config
+      copy:
+        src: sshd_config.j2
+        dest: /etc/ssh/sshd_config
+        owner: root
+        group: root
+        mode: "u=rw,g=r,o=r"
+        
+    - name: Restart SSH
+      service:
+        name: ssh
+        state: restarted
+  
+    - name: Generate SSH key
+      shell: ssh-keygen -b 4096 -t rsa -f /root/.ssh/id_rsa -q -N ""
+      args:
+        creates: /root/.ssh/id_rsa
+        
+    - name: Fetch SSH public key
+      fetch: 
+        src: /root/.ssh/id_rsa.pub
+        dest: "{{ local_pubkey_file }}"
+        flat: yes
+
+
+    - name: Create file system on HDFS storage device
+      filesystem: 
+        fstype: ext4
+        dev: "{{ data_device }}"
+
+
+    - name: Mount HDFS data device 
+      mount:
+        name: "{{ data_mount }}"
+        src: "{{ data_device }}"
+        fstype: ext4
+        opts: noatime
+        state: mounted  
+
+  
+#    - name: Check apt last update
+#      stat: path=/var/cache/apt
+#      register: apt_cache_stat
+      
+      
+    - name: Update system if it's over 12 hours since last update
+      apt: update_cache=yes 
+#      when: ansible_date_time.epoch|float - apt_cache_stat.stat.mtime > 60*60*12      
+#      become: yes
+      
+    - name: Install required packages
+      apt: name={{ item }} state=latest update_cache=no dpkg_options=force-confnew,force-confask
+      with_items:
+        - openjdk-7-jre-headless
+      become: yes
+      
+    - name: Install Hadoop distribution if it isn't already
+      unarchive: copy=yes creates={{hadoop_install_path}} src={{hadoop_distribution}} 
+            dest={{hadoop_install_path_parent}}
+      become: yes
+      
+    - name: Set JAVA_HOME in hadoop-env.sh
+      lineinfile: dest={{hadoop_install_path}}/etc/hadoop/hadoop-env.sh regexp='^export JAVA_HOME=.*$'
+            line='export JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64/jre' state=present
+
+    - name: Set HADOOP_CONF_DIR in hadoop-env.sh
+      lineinfile: dest={{hadoop_install_path}}/etc/hadoop/hadoop-env.sh regexp='^export HADOOP_CONF_DIR=.*$'
+            line='export HADOOP_CONF_DIR={{hadoop_install_path}}/etc/hadoop' state=present
+    
+    - name: Set HADOOP_HOME in hadoop-env.sh
+      lineinfile: dest={{hadoop_install_path}}/etc/hadoop/hadoop-env.sh regexp='^export HADOOP_HOME=.*$'
+            line='export HADOOP_HOME={{hadoop_install_path}}' insertbefore='^export HADOOP_CONF_DIR=.*$' state=present
+
+    - name: Set HADOOP_PREFIX_DIR in hadoop-env.sh
+      lineinfile: dest={{hadoop_install_path}}/etc/hadoop/hadoop-env.sh regexp='^export HADOOP_PREFIX_DIR=.*$'
+            line='export HADOOP_PREFIX_DIR={{hadoop_install_path}}' insertbefore='^export HADOOP_CONF_DIR=.*$' state=present
+
+    - name: Modify etc/hadoop/core-site.xml
+      template: src=templates/core-site.xml dest={{hadoop_install_path}}/etc/hadoop/core-site.xml 
+            
+
+    - name: Modify etc/hadoop/hdfs-site.xml
+      template: src=templates/hdfs-site.xml dest={{hadoop_install_path}}/etc/hadoop/hdfs-site.xml 
+            
+
+    - name: Modify etc/hadoop/yarn-site.xml
+      template: src=templates/yarn-site.xml dest={{hadoop_install_path}}/etc/hadoop/yarn-site.xml 
+            
+    - name: Modify etc/hadoop/mapred-site.xml
+      template: src=templates/mapred-site.xml dest={{hadoop_install_path}}/etc/hadoop/mapred-site.xml 
+            
+            
+      
+            

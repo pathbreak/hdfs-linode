@@ -1,0 +1,6 @@
+[zkhosts]
+104.155.218.97      private_ip=10.140.0.2   zkid=1
+104.199.194.185     private_ip=10.140.0.3   zkid=2
+104.199.157.217     private_ip=10.140.0.4   zkid=3
+
+
